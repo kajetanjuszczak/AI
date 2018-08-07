@@ -3,6 +3,9 @@ import time
 import sys
 import math
 import heapq
+import os
+import psutil
+
 #### SKELETON CODE ####
 # The Class that Represents the Puzzle`
 
@@ -182,18 +185,6 @@ class PuzzleState(object):
 
 # Students need to change the method to have the corresponding parameter
 
-def writeOutput(path_to_goal, cost_of_path, nodes_expanded, search_depth, time):
-    output = "C:/stuff/python/AI/P1/output.txt"
-    with open(output, "w") as w:
-        w.write("path_to_goal: {}\n".format(path_to_goal))
-        w.write("cost_of_path: {}\n".format(cost_of_path))
-        w.write("nodes_expanded: {}\n".format(nodes_expanded))
-        w.write("search_depth: {}\n".format(cost_of_path))
-        w.write("max_search_depth: {}\n".format(search_depth))
-        w.write("running_time: {}".format(time))
-    # Student Code Goes here
-
-
 def bfs_search(initial_state):
     """BFS search"""
     time1 = time.time()
@@ -206,13 +197,10 @@ def bfs_search(initial_state):
     while not frontier.empty():
         state = frontier.get()
         if test_goal(state):
-            action_list = [state.get_action()]
-            parent = state.get_parent()
-            for i in range(state.get_cost() - 1):
-                action_list.append(parent.get_action())
-                parent = parent.get_parent()
             time2 = time.time()
-            return writeOutput(action_list[::-1], state.get_cost(), len(explored), current_highest, time2-time1)
+            process = psutil.Process(os.getpid())
+            path_to_goal, cost_of_path = output_formating(state)
+            return writeOutput(path_to_goal, cost_of_path, len(explored), current_highest, time2-time1, process.memory_info().rss)
         frontier_set.remove(state.get_config())
         explored.add(state.get_config())
         neighbors = state.expand()
@@ -234,17 +222,13 @@ def dfs_search(initial_state):
     explored = set()
     current_highest = 0
     while len(frontier) > 0:
-    # for i in range(10):
         state = frontier.pop()
         frontier_set.remove(state.get_config())
         if test_goal(state):
-            action_list = [state.get_action()]
-            parent = state.get_parent()
-            for i in range(state.get_cost() - 1):
-                action_list.append(parent.get_action())
-                parent = parent.get_parent()
             time2 = time.time()
-            return action_list[::-1] ,state.cost, len(explored), current_highest, time2-time1
+            process = psutil.Process(os.getpid())
+            path_to_goal, cost_of_path = output_formating(state)
+            return writeOutput(path_to_goal, cost_of_path, len(explored), current_highest, time2-time1, process.memory_info().rss)
         explored.add(state.get_config())
         neighbors = state.expand()[::-1]
         for neighbor in neighbors:
@@ -257,26 +241,33 @@ def dfs_search(initial_state):
 
 def A_star_search(initial_state):
     """A * search"""
-
+    time1 = time.time()
+    entry = 0
     frontier_heap = []
-    heapq.heappush(frontier_heap, (0, initial_state))
+    heapq.heappush(frontier_heap, (0, entry, initial_state))
     frontier_set = set()
     frontier_set.add(initial_state.get_config())
     explored = set()
     current_highest = 0
     while len(frontier_heap) > 0:
-        # change hype so that 2 same numbers can be compared
         state = heapq.heappop(frontier_heap)
-        frontier_set.remove(state[1].get_config())
-        if test_goal(state[1]):
-            return "win"
-        explored.add(state[1].get_config())
-        neighbors = state[1].expand()
+        frontier_set.remove(state[2].get_config())
+        if test_goal(state[2]):
+            time2 = time.time()
+            process = psutil.Process(os.getpid())
+            path_to_goal, cost_of_path = output_formating(state[2])
+            return writeOutput(path_to_goal, cost_of_path, len(explored), current_highest, time2-time1, process.memory_info().rss)
+        explored.add(state[2].get_config())
+        neighbors = state[2].expand()
         for neighbor in neighbors:
+            entry += 1
             if neighbor.get_config() not in explored and neighbor.get_config() not in frontier_set:
                 distance = calculate_total_cost(neighbor)
-                heapq.heappush(frontier_heap, (distance, neighbor))
+                heapq.heappush(frontier_heap, (distance, entry, neighbor))                  
                 frontier_set.add(neighbor.get_config())
+                if neighbor.get_cost() > current_highest:
+                    current_highest = neighbor.get_cost()
+
 
 
 
@@ -295,18 +286,39 @@ def calculate_manhattan_dist(state):
     return total_dist
     ### STUDENT CODE GOES HERE ###
 
-def test_goal(puzzle_state):
+def test_goal(state):
     """test the state is the goal state or not"""
     goal_config = (0, 1, 2, 3, 4, 5, 6, 7, 8)
-    if puzzle_state.get_config() == goal_config:
+    if state.get_config() == goal_config:
         return True
     return False
     ### STUDENT CODE GOES HERE ###
 
-def priority(state): 
-    pass
-
+def mapping(state):
+    map = {"Up " : 0,
+           "Down " : 1,
+           "Left " : 2, 
+           "Right " : 3}
+    return map[state.get_action()]
 # Main Function that reads in Input and Runs corresponding Algorithm
+
+def writeOutput(path_to_goal, cost_of_path, nodes_expanded, search_depth, time, max_ram_usage):
+    with open("output.txt", "w") as w:
+        w.write("path_to_goal: {}\n".format(path_to_goal))
+        w.write("cost_of_path: {}\n".format(cost_of_path))
+        w.write("nodes_expanded: {}\n".format(nodes_expanded))
+        w.write("search_depth: {}\n".format(cost_of_path))
+        w.write("max_search_depth: {}\n".format(search_depth))
+        w.write("running_time: {}\n".format(time))
+        w.write("max_ram_usage: {}".format(max_ram_usage))
+
+def output_formating(state):
+    action_list = [state.get_action()]
+    parent = state.get_parent()
+    for i in range(state.get_cost() - 1):
+        action_list.append(parent.get_action())
+        parent = parent.get_parent()
+    return action_list[::-1], state.get_cost()
 
 
 def main():
@@ -317,9 +329,9 @@ def main():
 
     begin_state = tuple(map(int, begin_state))
 
-    size = int(math.sqrt(len(begin_state)))
+    #size = int(math.sqrt(len(begin_state)))
 
-    hard_state = PuzzleState(begin_state, size)
+    hard_state = PuzzleState(begin_state)
 
     if sm == "bfs":
 
@@ -339,11 +351,6 @@ def main():
 
 
 if __name__ == '__main__':
-    #print(dfs_search(PuzzleState((6,1,8,4,0,2,7,3,5))))
-# =============================================================================
-#     print(bfs_search(PuzzleState((1,2,5,3,4,0,6,7,8))))
-# =============================================================================
-    print(A_star_search(PuzzleState((6,1,8,4,0,2,7,3,5))))
-    #print(calculate_manhattan_dist(PuzzleState((6,1,8,4,0,2,7,3,5))))
-    # main()
+    main()
+    #dfs_search(PuzzleState((6,1,8,4,0,2,7,3,5)))
 
