@@ -185,8 +185,12 @@ if __name__ == '__main__':
     g.map[3][0] = 4
 
     while True:
-        for i in g.map:
-            print(i)
+        max_tile = g.getMaxTile()
+        for i in range(g.size):
+            for j in range(g.size):
+                if g.map[i][j] == max_tile:
+                    print(i,j)
+
 
         print(g.getAvailableMoves())
 
